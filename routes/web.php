@@ -24,8 +24,6 @@ Route::get('/', function () {
 });
 
 
-
-
 Route::get('terms_conditions', function(){
     return view('terms_conditions');
 });

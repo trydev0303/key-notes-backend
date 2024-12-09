@@ -19,7 +19,7 @@
                                             <td align="center"
                                                 style="font-size:37px; font-weight: bold;  padding: 30px 0px; position: relative;">
                                                 <img style="max-height: 100px"
-                                                    src="https://dev.bosselt.com/key-notes-backend/public/admin/src/sidebar-logo.svg"
+                                                    src="{{ config('app.url') }}/admin/src/sidebar-logo.svg"
                                                     class="img-flued" alt="" height="100">
                                             </td>
                                         </tr>

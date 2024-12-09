@@ -143,13 +143,23 @@ class AdminController extends Controller
     }
 
     foreach ($user as $key => $value) {
-      $user_notification               = new UserNotification;
-      $user_notification->sender_id    = Auth::id();
-      $user_notification->receiver_id  = $value->id;
-      $user_notification->title        = $request->title;
-      $user_notification->type         = $request->type;
-      $user_notification->notification = $request->description;
-      $user_notification->save();
+        if($value->is_notify === 1){
+            $user_notification               = new UserNotification;
+            $user_notification->sender_id    = Auth::id();
+            $user_notification->receiver_id  = $value->id;
+            $user_notification->title        = $request->title;
+            $user_notification->type         = $request->type;
+            $user_notification->notification = $request->description;
+            $user_notification->save();
+        }
+        if($value->is_email_notify === 1){
+            $userName = $value->first_name;
+            $title = $request->title;
+            $description = $request->description;
+            $html     = view('templates.emails.send_notification', compact('userName', 'title', 'description'))->render();
+            $subject  = 'Key-Notes Notification!';
+            sendEmail($value->email, $subject, $html);
+        }
     }
     return back()->with('success', 'Successfully Add Notification');
   }

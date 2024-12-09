@@ -92,77 +92,6 @@ class AuthController extends Controller
         }
     }
 
-    public function socialSignUp(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'first_name'   => 'required',
-            'last_name'    => 'required',
-            'email'        => 'required',
-            'device_type'  => 'required',
-            'device_model'  => 'required',
-            'device_token' => 'required',
-            'social_login_type' => 'required',
-        ]);
-
-        if ($validator->fails()) {
-            return errorHandle($validator);
-        }
-        $usercheck = User::where('email', $request->email)->first();
-        $otp = mt_rand(1000, 9999);
-        if ($usercheck) {
-            if ($usercheck->is_verified == 0) {
-                $usercheck->first_name    = $request->first_name;
-                $usercheck->last_name     = $request->last_name;
-                $usercheck->device_type   = $request->device_type;
-                $usercheck->device_token  = $request->device_token;
-                $usercheck->device_model  = $request->device_model;
-                $usercheck->otp           = $otp;
-                $usercheck->save();
-
-                $userName = $request->get('first_name');
-                $html     =  view('templates.emails.welcome', compact('otp', 'userName'))->render();
-                $subject  = 'Key-Notes OTP!';
-                sendEmail($request->get('email'), $subject, $html);
-                return successRes(200, 'User register successfully!', $usercheck);
-            } else {
-                return errorRes(400, 'The email has already been taken.');
-            }
-        } else {
-            $user = new User();
-            $user->first_name    = $request->first_name;
-            $user->last_name     = $request->last_name;
-            $user->email         = $request->email;
-            $user->password      = Hash::make($request->password);
-            $user->role          = 1;
-            $user->otp           = $otp;
-            $user->device_type   = $request->device_type;
-            $user->device_token  = $request->device_token;
-
-
-            if (isset($request->device_model)) {
-                $user->device_model  = $request->device_model;
-            }
-
-            if ($request->profile_image) {
-                $file = $request->file('profile_image');
-                $name = time() . "." . $file->getClientOriginalExtension();
-                $file->move(public_path('uploads'), $name);
-
-                $user->profile_image = $name;
-            }else{
-                $user->profile_image  = 'user_default.jpg';
-            }
-
-            $userName = $request->get('first_name');
-            $html     =  view('templates.emails.welcome', compact('otp', 'userName'))->render();
-            $subject  = 'Key-Notes OTP!';
-            sendEmail($request->get('email'), $subject, $html);
-
-            $user->save();
-            return successRes(200, 'User register successfully!', $user);
-        }
-    }
-
     public function verifyOtp(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -256,9 +185,14 @@ class AuthController extends Controller
             }
 
             if ($user_detail->is_verified == 1) {
+
+                $user_detail->login_type = 2;
+
                 $user_detail->device_type  = $request->device_type;
                 $user_detail->device_token = $request->device_token;
                 $user_detail->device_model = $request->device_model;
+                $user_detail->country = $request->country;
+                $user_detail->location = $request->location;
                 $user_detail->is_online    = 1;
                 $user_detail->last_login   =  now();
                 $user_detail->save();
@@ -295,7 +229,7 @@ class AuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'first_name'        => 'required',
-            'last_name'     => 'required',
+            // 'last_name'     => 'required',
             'email'        => 'required',
             'device_type'  => 'required',
             'device_token' => 'required',
@@ -305,9 +239,8 @@ class AuthController extends Controller
         if ($validator->fails()) {
             return errorHandle($validator);
         }
-
-        if (Auth::attempt(['email' => $request->email])) {
-            $user_detail = User::where('email', $request->email)->first();
+        $user_detail = User::where('email', $request->email)->first();
+        if ($user_detail) {
 
             // if ($user_detail->status != 1) {
             //     return errorRes(400, 'Your Account has been deactivated by admin!');
@@ -320,40 +253,55 @@ class AuthController extends Controller
             if ($user_detail->status == 3) {
                 return errorRes(510, 'Sorry, Your Account has been deactivate by admin!');
             }
+            $user_detail->login_type = 1;
+            $user_detail->is_verified = 1;
+            $user_detail->social_login_type = $request->social_login_type;
 
-            if ($user_detail->is_verified == 1) {
-                $user_detail->device_type  = $request->device_type;
-                $user_detail->device_token = $request->device_token;
-                $user_detail->device_model = $request->device_model;
-                $user_detail->is_online    = 1;
-                $user_detail->last_login   =  now();
-                $user_detail->save();
+            $user_detail->device_type  = $request->device_type;
+            $user_detail->device_token = $request->device_token;
+            $user_detail->device_model = $request->device_model;
+            $user_detail->country = $request->country;
+            $user_detail->location = $request->location;
+            $user_detail->is_online    = 1;
+            $user_detail->last_login   =  now();
+            $user_detail->save();
 
-                $token = $user_detail->createToken('authToken')->accessToken;
-                $user_detail->remember_token = $token;
-                $user_detail->save();
+            $token = $user_detail->createToken('authToken')->accessToken;
+            $user_detail->remember_token = $token;
+            $user_detail->save();
 
-                $user_detail        = User::where('email', $request->email)->first();
-                $user_detail->token = $token;
+            $user_detail        = User::where('email', $request->email)->first();
+            $user_detail->token = $token;
 
-                return successRes(200, 'User Login Successfully', $user_detail);
-            } else {
-                $otp = rand(1000, 9999);
-                $user_detail->otp          = $otp;
-                $user_detail->device_type  = $request->device_type;
-                $user_detail->device_token = $request->device_token;
-                $user_detail->device_model = $request->device_model;
-                $user_detail->save();
-
-                $userName = $user_detail->first_name;
-                $html     =  view('templates.emails.resend_otp', compact('otp', 'userName'))->render();
-                $subject  = 'Key-Notes OTP!';
-                sendEmail($request->get('email'), $subject, $html);
-
-                return errorRes(201, 'Please verify your account before login!', $user_detail);
-            }
+            return successRes(200, 'User Login Successfully', $user_detail);
         } else {
-            return errorRes(400, 'Invalid Credentials');
+            $user = new User();
+            $user->first_name    = $request->first_name;
+            $user->last_name     = $request->last_name;
+            $user->email         = $request->email;
+            $user->is_verified = 1;
+            $user->role          = 1;
+            $user->login_type    = 1;
+            $user->email_verified_at = now();
+            $user->country = $request->country;
+            $user->location = $request->location;
+            $user->social_login_type = $request->social_login_type;
+            $user->device_type   = $request->device_type;
+            $user->device_token  = $request->device_token;
+            $user->device_model  =  $request->device_model;
+            $user->is_online     =  1;
+            $user->profile_image = 'user_default.jpg';
+            $user->last_login   =  now();
+            $user->save();
+
+            $token = $user->createToken('authToken')->accessToken;
+            $user->remember_token = $token;
+            $user->save();
+
+            $user        = User::where('email', $request->email)->first();
+            $user->token = $token;
+
+            return successRes(200, 'User Login Successfully', $user);
         }
     }
 
@@ -421,7 +369,7 @@ class AuthController extends Controller
             $user = User::where('id', Auth::id())->first();
             $user->password = bcrypt($request->new_password);
             $user->save();
-            return successRes(200, 'Password changed successfully', $user);
+            return successRes(200, 'Password saved successfully', $user);
         } else {
             return errorRes(400, 'Incorrect old password');
         }
@@ -469,7 +417,7 @@ class AuthController extends Controller
             $user->password     = bcrypt($password);
             $user->save();
 
-            return successRes(200, 'Password Change successfully!', $user);
+            return successRes(200, 'Password saved successfully!', $user);
         } else {
             return errorRes(400, 'Email does not exist!');
         }
@@ -484,7 +432,9 @@ class AuthController extends Controller
         $token = $request->user()->token();
         $token->revoke();
 
-        return successRes(200, 'You have been successfully logged out!');
+        $user = User::where('id', Auth::id())->first();
+
+        return successRes(200, 'You have been successfully logged out!', $user);
     }
 
     public function deleteAccount(Request $request)
@@ -541,7 +491,7 @@ class AuthController extends Controller
                 $user->is_email_notify = $request->value;
             }
             $user->save();
-            return successRes(200, 'operation successfully!', $user);
+            return successRes(200, 'Success!', $user);
         } else {
             return errorRes(400, 'User not found!');
         }

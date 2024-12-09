@@ -18,7 +18,6 @@ use App\Http\Controllers\Api\SubscriptionController;
 */
 
 Route::post('sign_up',             [AuthController::class, 'sign_up']);
-Route::post('social_sign_up',      [Authcontroller::class, 'socialSignUp']);
 
 Route::post('verify_otp',          [AuthController::class, 'verifyOtp']);
 Route::post('resend_otp',          [AuthController::class, 'resendOtp']);
@@ -62,10 +61,13 @@ Route::middleware(['auth:api'])->group(function () {
         Route::post('contact_support',          [UserController::class, 'contactSupport']);
         Route::post('get_user_notifications',   [UserController::class, 'getUserNotifications']);
 
+        Route::post('edit_user_notification',   [UserController::class, 'editUserNotification']);
+        Route::post('delete_user_notification', [UserController::class, 'deleteUserNotification']);
+
         Route::post('purchase_subscription',    [SubscriptionController::class, 'purchaseSubscription']);
 
         // setting security
-        Route::post('setting_security_edit',       [AuthController::class, 'settinSecurityEdit']);
+        Route::post('setting_security_edit',    [AuthController::class, 'settinSecurityEdit']);
     });
 });
 

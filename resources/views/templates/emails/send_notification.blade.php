@@ -38,7 +38,7 @@
                                         <tr>
                                             <td align="left"
                                                 style="font-family: 'Raleway', sans-serif; font-size:16px; color:#000000; font-weight: 700; line-height: 25px;">
-                                                <p class="">Reset your account password  </p>
+                                                <p class="">{{$title}}  </p>
                                             </td>
                                         </tr>
                                         <tr>
@@ -46,20 +46,12 @@
                                                 style="font-family: 'Raleway', sans-serif; font-size:16px; color:#000000; font-weight: 700; ">
                                                 <p
                                                     style="font-family: 'Raleway', sans-serif; font-size:16px; color:#000000; font-weight: 700; margin-bottom:0px">
-                                                    We recieved a request to reset your Key-Notes account password. Please use the following one-time password to verify yourself
+                                                    {{$description}}
                                                 </p>
-                                                <p
-                                                    style="font-family: 'Raleway', sans-serif; font-size:24px; color:#000000; font-weight: 700; margin-top: 10px;">
-                                                    {{ $otp }}</p>
                                             </td>
                                         </tr>
                                         <tr>
                                             <td height="20"></td>
-                                        </tr>
-                                        <tr>
-                                            <td align="left" style="font-family: 'Raleway', sans-serif;font-size:16px; color:#5c5a5a; font-weight: 700;">
-                                                If you didn't request this, you can safely ignore this email.
-                                            </td>
                                         </tr>
                                         <tr>
                                             <td height="30"></td>

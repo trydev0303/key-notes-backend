@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
+use App\Jobs\ProcessTranscription;
+
 
 class UserController extends Controller
 {
@@ -47,9 +49,11 @@ class UserController extends Controller
         }
         $recording->user_id           = Auth::id();
         $recording->duration          = $request->duration;
-        $recording->transcription_box = $request->transcription_box;
+        $recording->transcription_box = $request->transcription_box ?? null;
         $recording->recording_name    = $request->recording_name;
         $recording->save();
+
+        ProcessTranscription::dispatch($recording->id);
 
         return successRes(200, 'Recording created successfully!', $recording);
     }
@@ -175,12 +179,17 @@ class UserController extends Controller
             RecordingNote::where('user_id', Auth::id())->whereIn('recording_id', $recordingIds)->delete();
             $message = "Successfully deleted {$recordingCount} recording note{$pluralSuffix}.";
         } else {
-
+            $record = Recording::where('user_id', Auth::id())->whereIn('id', $recordingIds)->first();
+            $filePath = public_path('recordings/' . $record->recording);
+            if (File::exists($filePath)) {
+                File::delete($filePath);
+            }
             RecordingHighlight::where('user_id', Auth::id())->whereIn('recording_id', $recordingIds)->delete();
             RecordingNote::where('user_id', Auth::id())->whereIn('recording_id', $recordingIds)->delete();
             FolderFiles::where('user_id', Auth::id())->whereIn('recording_id', $recordingIds)->delete();
             ShareRecording::where('user_id', Auth::id())->whereIn('recording_id', $recordingIds)->delete();
             Recording::where('user_id', Auth::id())->whereIn('id', $recordingIds)->delete();
+
             $message = "Successfully deleted {$recordingCount} recording{$pluralSuffix}.";
         }
         return successRes(200, $message);
@@ -473,11 +482,38 @@ class UserController extends Controller
 
     public function getUserNotifications(Request $request)
     {
-        $notifications = UserNotification::where(['status' => 1, 'receiver_id' => Auth::id()])->get();
+        $notifications = UserNotification::where(['status' => 1, 'receiver_id' => Auth::id()])->orderBy('created_at', 'desc')->get();
         if ($notifications->isNotEmpty()) {
             return successRes(200, "Successfully fetched notifications", $notifications);
         }
         return errorRes(200, "User notifications not found");
+    }
+
+    public function editUserNotification(Request $request){
+        $validator = Validator::make($request->all(), [
+            'notification_id' => 'required'
+        ]);
+        if ($validator->fails()) {
+            return errorHandle($validator);
+        }
+        $notification = UserNotification::where(['id' => $request->notification_id, 'receiver_id' => Auth::id()])->first();
+        if($notification){
+            $notification->type = '2';
+            $notification->save();
+            return successRes(200, "Successfully edit notification", $notification);
+        }
+        return errorRes(400, "Folder not found");
+    }
+
+    public function deleteUserNotification(Request $request){
+        $validator = Validator::make($request->all(), [
+            'notification_id' => 'required'
+        ]);
+        if ($validator->fails()) {
+            return errorHandle($validator);
+        }
+        $notification = UserNotification::where(['id' => $request->notification_id, 'receiver_id' => Auth::id()])->delete();
+        return successRes(200, $notification);
     }
 
     public function getRecordingDetails(Request $request)
@@ -490,7 +526,6 @@ class UserController extends Controller
             return errorHandle($validator);
         }
         $recording = Recording::with(['notes.user', 'user_detail'])->where('id', $request->recording_id)->first();
-        // print_r('---111-'.$recording.'-------');
         if (!$recording) {
             return errorRes(400, 'Recording not found');
         }
@@ -499,7 +534,7 @@ class UserController extends Controller
             return errorRes(400, 'Recording file not found');
         }
 
-        $recording['converted_url']        = $this->convertHighlightsToMp3($recording->id, 1);
+        // $recording['converted_url']        = $this->convertHighlightsToMp3($recording->id, 1);
         $recording['recording_highlights'] = $this->convertHighlightsToMp3($recording->id, 2);
 
         return successRes(200, 'Recording details retrieved successfully', $recording);
@@ -722,8 +757,8 @@ class UserController extends Controller
             $convertedUrl = [];
             if (File::exists($audioFilePath)) {
                 $ffmpeg = FFMpeg::create([
-                    'ffmpeg.binaries'  => env('FFMPEG_BINARY'),
-                    'ffprobe.binaries' => env('FFPROBE_BINARY'),
+                    'ffmpeg.binaries'  => 'D:\Work\Real_Project\key-notes-backend\storage\ffmpeg\bin\ffmpeg.exe',
+                    'ffprobe.binaries' => 'D:\Work\Real_Project\key-notes-backend\storage\ffmpeg\bin\ffprobe.exe',
                 ]);
 
                 foreach ($supportedFormats as $format) {
@@ -742,64 +777,4 @@ class UserController extends Controller
         }
     }
 
-    // public function convertHighlightsToMp3($id = false, $type = false)
-    // {
-    //     if ($type == 2 && $id) {
-    //         $highlights = RecordingHighlight::where('recording_id', $id)->get();
-    //         $convertedUrls = [];
-
-    //         foreach ($highlights as $highlight) {
-    //             $audioFilePath = public_path('recording_highlights/') . $highlight->file;
-    //             $supportedFormats = ['wav', 'aac', 'ogg']; // Example of supported formats
-
-    //             $highlightUrls = [];
-    //             if (File::exists($audioFilePath)) {
-    //                 $ffmpeg = FFMpeg::create();
-
-    //                 foreach ($supportedFormats as $format) {
-    //                     $convertedFileName = $highlight->file . '_' . $format . '.mp3';
-    //                     $convertedFilePath = public_path('recording_highlights/') . $convertedFileName;
-
-    //                     // Convert to MP3 format
-    //                     $audio = $ffmpeg->open($audioFilePath);
-    //                     $mp3Format = new Mp3();
-    //                     $audio->save($mp3Format, $convertedFilePath);
-
-    //                     $highlightUrls[$format] = File::exists($convertedFilePath) ? asset('recording_highlights/' . $convertedFileName) : '';
-    //                 }
-    //             }
-
-    //             $highlight->urls = $highlightUrls;
-    //             $convertedUrls[] = $highlight;
-    //         }
-
-    //         return $convertedUrls;
-    //     } else {
-    //         $recording = Recording::find($id);
-    //         if (!$recording) {
-    //             return [];
-    //         }
-
-    //         $audioFilePath = public_path('recordings/') . $recording->recording;
-    //         $supportedFormats = ['wav', 'aac', 'ogg']; // Example of supported formats
-    //         $convertedUrl = [];
-
-    //         if (File::exists($audioFilePath)) {
-    //             $ffmpeg = FFMpeg::create();
-
-    //             foreach ($supportedFormats as $format) {
-    //                 $convertedFileName = $recording->recording . '_' . $format . '.mp3';
-    //                 $convertedFilePath = public_path('recordings/') . $convertedFileName;
-
-    //                 // Convert to MP3 format
-    //                 $audio = $ffmpeg->open($audioFilePath);
-    //                 $mp3Format = new Mp3();
-    //                 $audio->save($mp3Format, $convertedFilePath);
-
-    //                 $convertedUrl[$format] = File::exists($convertedFilePath) ? asset('recordings/' . $convertedFileName) : '';
-    //             }
-    //         }
-    //         return $convertedUrl;
-    //     }
-    // }
 }

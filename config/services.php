@@ -34,4 +34,8 @@ return [
         'api_key' => env('SENDGRID_API_KEY'),
     ],
 
+    'google' => [
+        'api_key' => env('GOOGLE_API_KEY'),
+    ],
+
 ];

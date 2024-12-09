@@ -21,7 +21,7 @@ if (!function_exists('sendEmail')) {
         $sendGrid = new SendGrid($sendGridApiKey);
 
         $email = new SendGrid\Mail\Mail();
-        $email->setFrom("mailbox.deploy@gmail.com", "Key-Notes");
+        $email->setFrom("app@tapnote.tech", "Key-Notes");
         $email->setSubject($subject);
         $email->addTo($to);
         $email->addContent('text/html', $template);
